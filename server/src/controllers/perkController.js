@@ -16,6 +16,15 @@ const perkSchema = Joi.object({
 
 }); 
 
+
+const perkUpdateSchema = Joi.object({
+  title: Joi.string().min(2),
+  description: Joi.string().allow(''),
+  category: Joi.string().valid('food','tech','travel','fitness','other'),
+  discountPercent: Joi.number().min(0).max(100),
+  merchant: Joi.string().allow('')
+});
+
   
 
 // Filter perks by exact title match if title query parameter is provided 
@@ -69,9 +78,29 @@ export async function createPerk(req, res, next) {
 }
 // TODO
 // Update an existing perk by ID and validate only the fields that are being updated 
+// Update an existing perk by ID and validate only the fields that are being updated 
 export async function updatePerk(req, res, next) {
-  
+  try {
+    // validate request body (no defaults here!)
+    const { value, error } = perkUpdateSchema.validate(req.body, { stripUnknown: true });
+    if (error) return res.status(400).json({ message: error.message });
+
+    // update perk
+    const doc = await Perk.findByIdAndUpdate(
+      req.params.id,
+      { $set: value },
+      { new: true, runValidators: true }
+    );
+
+    if (!doc) return res.status(404).json({ message: 'Perk not found' });
+    res.json({ perk: doc });
+  } catch (err) {
+    if (err.code === 11000) return res.status(409).json({ message: 'Duplicate perk for this merchant' });
+    next(err);
+  }
 }
+
+
 
 
 // Delete a perk by ID
